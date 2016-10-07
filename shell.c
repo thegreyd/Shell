@@ -5,6 +5,7 @@
 #include "parse.h"
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 static void execCmd(Cmd c)
 {
@@ -47,12 +48,19 @@ static void execCmd(Cmd c)
     }
     putchar('\n');
     // this driver understands one command
-   
+    int returncode;
     childpid = fork();
     switch(childpid){
     	case(0):
     		execvp(c->args[0], c->args);
-    		fprintf(stderr, "Exec error\n");
+    		// error is executable/command not found 
+    		if (errno == 2) 
+    			fprintf(stderr, "command not found\n");
+    		// error is permission denied
+    		else if (errno == 13)
+    			fprintf(stderr, "permission denied\n");
+			else
+				fprintf(stderr, "%d: %s\n", errno,strerror(errno));
     		exit(EXIT_FAILURE);
     	case(-1):
     		fprintf(stderr, "Fork error\n");
@@ -86,7 +94,8 @@ static void execPipe(Pipe p)
 int main(int argc, char *argv[])
 {
   Pipe p;
-  char *host = "armadillo";
+  char *host;
+  host = getenv("USER");
 
   while ( 1 ) {
     printf("%s%% ", host);
