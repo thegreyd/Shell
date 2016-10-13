@@ -8,36 +8,37 @@
 #include <errno.h>
 #include <fcntl.h>
 
-int old_pipefd[2];
 int pipefd[2];
+int oldpipefd[2];
+int status;
         
 static void execCmd(Cmd c)
 {
     int i;
     pid_t childpid;
     if ( c ) {
-        printf("%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
+        fprintf(stderr,"%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
         if ( c->in == Tin )
-            printf("<(%s) ", c->infile);
+            fprintf(stderr,"<(%s) ", c->infile);
         if ( c->out != Tnil )
             switch ( c->out ) {
                 case Tout:
-                    printf(">(%s) ", c->outfile);
+                    fprintf(stderr,">(%s) ", c->outfile);
                     break;
                 case Tapp:
-                    printf(">>(%s) ", c->outfile);
+                    fprintf(stderr,">>(%s) ", c->outfile);
                     break;
                 case ToutErr:
-                    printf(">&(%s) ", c->outfile);
+                    fprintf(stderr,">&(%s) ", c->outfile);
                     break;
                 case TappErr:
-                    printf(">>&(%s) ", c->outfile);
+                    fprintf(stderr,">>&(%s) ", c->outfile);
                     break;
                 case Tpipe:
-                    printf("| ");
+                    fprintf(stderr,"| ");
                     break;
                 case TpipeErr:
-                    printf("|& ");
+                    fprintf(stderr,"|& ");
                     break;
                 default:
                     fprintf(stderr, "Shouldn't get here\n");
@@ -45,10 +46,10 @@ static void execCmd(Cmd c)
             }
 
         if ( c->nargs > 1 ) {
-            printf("[");
+            fprintf(stderr,"[");
             for ( i = 1; c->args[i] != NULL; i++ )
-                printf("%d:%s,", i, c->args[i]);
-            printf("\b]");
+                fprintf(stderr,"%d:%s,", i, c->args[i]);
+            fprintf(stderr,"\b]");
         }
         putchar('\n');
         // this driver understands one command
@@ -57,20 +58,58 @@ static void execCmd(Cmd c)
             exit(0);
         
         if ( c->out == Tpipe ){ 
-        	pipe(pipefd);
+        	//if ( pipe_in_progress == 0 ){
+        		pipe(pipefd);
+        		fprintf(stderr,"pipe[%d,%d] created\n",pipefd[0],pipefd[1]);
+        	//}
+        	//else {
+        	//	fprintf(stderr,"more pipe created\n");
+        	//	pipe(morepipefd);	
+        	//}
+        	
         }
+
         //ls | grep h
         childpid = fork();
         switch ( childpid ) {
             case 0:
-                if ( c->out == Tpipe ) {
-                	dup2(pipefd[1],  STDOUT_FILENO);
-                	close(pipefd[1]);
-                }
-                if ( c->in == Tpipe ) {
-                	dup2(pipefd[0], STDIN_FILENO);
-                	close(pipefd[0]);
+            	if ( c->in == Tpipe ) {
+                	
+                	//fprintf(stderr,"reading from %d\n",oldpipefd[0]);
+                	//fprintf(stderr,"--inchild closed %d\n", oldpipefd[0]);
+                	//fprintf(stderr,"--inchild closed %d\n", oldpipefd[1]);
+                	status = dup2(oldpipefd[0], STDIN_FILENO);
+                	if ( status<0 ){
+            			perror("dup2 c->in");
+            			exit(0);
+                	}
+                	close(oldpipefd[0]);
+                	
 				}
+
+                if ( c->out == Tpipe ) {
+            		//close(pipefd[0]);
+            		//fprintf(stderr,"writing to %d\n",pipefd[1]);
+            		//fprintf(stderr,"--inchild closed %d\n", pipefd[0]);
+                	//fprintf(stderr,"--inchild closed %d\n", pipefd[1]);
+            		status = dup2(pipefd[1],  STDOUT_FILENO);	
+            		if (status<0){
+            			perror("dup2 in c->out");
+            			exit(0);
+            		}
+            		
+            		close(pipefd[1]);
+                }
+
+                if ( c->in == Tpipe ) {
+                	close(oldpipefd[1]);
+                }
+
+                if ( c->out == Tpipe ) {
+                	close(pipefd[0]);
+                }
+
+                // execute the command
                 execvp(c->args[0], c->args);
                 // error is executable/command not found 
                 if ( errno == 2 ) 
@@ -86,11 +125,17 @@ static void execCmd(Cmd c)
                 exit(EXIT_FAILURE);
             default:
                 wait(NULL);
-                if ( c->out == Tpipe ) {
-                	close(pipefd[1]);
+                if ( c->in == Tpipe ) {
+                	close(oldpipefd[0]);
+                	//fprintf(stderr,"%d closed\n",oldpipefd[0]);
             	}
-            	if ( c->in == Tpipe ) {
-                	close(pipefd[0]);
+
+            	if ( c->out == Tpipe ) {
+                	oldpipefd[0] = pipefd[0];
+		            oldpipefd[1] = pipefd[1];
+		            close(pipefd[1]);
+		            //fprintf(stderr,"%d closed\n",oldpipefd[1]);
+		            //fprintf(stderr,"pipes copied\n");
             	}
         }
     }
@@ -104,14 +149,14 @@ static void execPipe(Pipe p)
     if ( p == NULL )
         return;
 
-    printf("Begin pipe%s\n", p->type == Pout ? "" : " Error");
+    fprintf(stderr,"Begin pipe%s\n", p->type == Pout ? "" : " Error");
     for ( c = p->head; c != NULL; c = c->next ) {
-        printf("  Cmd #%d: ", ++i);
+        fprintf(stderr,"  Cmd #%d: ", ++i);
         execCmd(c);
     }
     close(pipefd[0]);
     close(pipefd[1]);
-    printf("End pipe\n");
+    fprintf(stderr,"End pipe\n");
     execPipe(p->next);
 }
 
@@ -122,7 +167,7 @@ int main(int argc, char *argv[])
     host = getenv("USER");
 
     while ( 1 ) {
-        printf("%s%% ", host);
+        fprintf(stderr,"%s%% ", host);
         p = parse();
         execPipe(p);
         freePipe(p);
