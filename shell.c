@@ -55,29 +55,16 @@ static void execCmd(Cmd c)
         // this driver understands one command
         // exit if exit
         if ( !strcmp(c->args[0], "end") || !strcmp(c->args[0], "exit") )
-            exit(0);
+           exit(0);
         
         if ( c->out == Tpipe ){ 
-        	//if ( pipe_in_progress == 0 ){
-        		pipe(pipefd);
-        		fprintf(stderr,"pipe[%d,%d] created\n",pipefd[0],pipefd[1]);
-        	//}
-        	//else {
-        	//	fprintf(stderr,"more pipe created\n");
-        	//	pipe(morepipefd);	
-        	//}
-        	
+        	pipe(pipefd);
         }
 
-        //ls | grep h
         childpid = fork();
         switch ( childpid ) {
             case 0:
             	if ( c->in == Tpipe ) {
-                	
-                	//fprintf(stderr,"reading from %d\n",oldpipefd[0]);
-                	//fprintf(stderr,"--inchild closed %d\n", oldpipefd[0]);
-                	//fprintf(stderr,"--inchild closed %d\n", oldpipefd[1]);
                 	status = dup2(oldpipefd[0], STDIN_FILENO);
                 	if ( status<0 ){
             			perror("dup2 c->in");
@@ -88,10 +75,6 @@ static void execCmd(Cmd c)
 				}
 
                 if ( c->out == Tpipe ) {
-            		//close(pipefd[0]);
-            		//fprintf(stderr,"writing to %d\n",pipefd[1]);
-            		//fprintf(stderr,"--inchild closed %d\n", pipefd[0]);
-                	//fprintf(stderr,"--inchild closed %d\n", pipefd[1]);
             		status = dup2(pipefd[1],  STDOUT_FILENO);	
             		if (status<0){
             			perror("dup2 in c->out");
@@ -127,15 +110,12 @@ static void execCmd(Cmd c)
                 wait(NULL);
                 if ( c->in == Tpipe ) {
                 	close(oldpipefd[0]);
-                	//fprintf(stderr,"%d closed\n",oldpipefd[0]);
             	}
 
             	if ( c->out == Tpipe ) {
                 	oldpipefd[0] = pipefd[0];
 		            oldpipefd[1] = pipefd[1];
 		            close(pipefd[1]);
-		            //fprintf(stderr,"%d closed\n",oldpipefd[1]);
-		            //fprintf(stderr,"pipes copied\n");
             	}
         }
     }
@@ -154,8 +134,6 @@ static void execPipe(Pipe p)
         fprintf(stderr,"  Cmd #%d: ", ++i);
         execCmd(c);
     }
-    close(pipefd[0]);
-    close(pipefd[1]);
     fprintf(stderr,"End pipe\n");
     execPipe(p->next);
 }
