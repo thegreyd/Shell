@@ -11,6 +11,7 @@
 int pipefd[2];
 int oldpipefd[2];
 int status;
+int fdin, fdout;
         
 static void execCmd(Cmd c)
 {
@@ -64,36 +65,141 @@ static void execCmd(Cmd c)
         childpid = fork();
         switch ( childpid ) {
             case 0:
-            	if ( c->in == Tpipe ) {
+            	//deal with input redirect
+                if ( c->in == Tin ) {
+                    fdin = open(c->infile,O_RDONLY);
+                    if ( fdin < 0 ) {
+                        perror("open error");
+                        exit(0);
+                    }
+                    
+                    status = dup2(fdin, STDIN_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);   
+                    }
+                    close(fdin);
+                }
+
+                //deal with output redirect
+                if ( c->out == Tout ) {
+                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+                    if ( fdin < 0 ) {
+                        perror("open error");
+                        exit(0);
+                    }
+                    
+                    status = dup2(fdout, STDOUT_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);   
+                    }
+                    close(fdout);
+                }
+
+                //deal with output append redirect
+                if ( c->out == Tapp ) {
+                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_APPEND, 0666);
+                    if ( fdin < 0 ) {
+                        perror("open error");
+                        exit(0);
+                    }
+                    status = dup2(fdout, STDOUT_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2"); 
+                        exit(0);   
+                    }
+                    close(fdout);
+                }
+
+                //deal with outputerror redirect
+                if ( c->out == ToutErr ) {
+                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+                    if ( fdin < 0 ) {
+                        perror("open error");
+                        exit(0);
+                    }
+                    status = dup2(fdout, STDOUT_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);   
+                    }
+                    status = dup2(fdout, STDERR_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);   
+                    }
+                    close(fdout);
+                }
+
+                //deal with output append error redirect
+                if ( c->out == TappErr ) {
+                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_APPEND, 0666);
+                    if ( fdin < 0 ) {
+                        perror("open error");
+                        exit(0);
+                    }
+                    status = dup2(fdout, STDOUT_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);   
+                    }
+                    status = dup2(fdout, STDERR_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);   
+                    }
+                    close(fdout);
+                }
+
+                // deal with pipes and pipeErr redirects
+                if ( c->in == Tpipe || c->in == TpipeErr ) {
                 	status = dup2(oldpipefd[0], STDIN_FILENO);
-                	if ( status<0 ){
-            			perror("dup2 c->in");
-            			exit(0);
-                	}
-                	close(oldpipefd[0]);
-                	
-				}
+                	if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);
+                    }
+                    close(oldpipefd[0]);
+                }
 
                 if ( c->out == Tpipe ) {
             		status = dup2(pipefd[1],  STDOUT_FILENO);	
-            		if (status<0){
-            			perror("dup2 in c->out");
-            			exit(0);
-            		}
-            		
-            		close(pipefd[1]);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);
+                    }
+                    close(pipefd[1]);
                 }
 
-                if ( c->in == Tpipe ) {
+                if ( c->out == TpipeErr ) {
+                    status = dup2(pipefd[1],  STDOUT_FILENO);
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);
+                    }
+                    status = dup2(pipefd[1],  STDERR_FILENO);      
+                    if ( status < 0 ) {
+                        perror("dup2");
+                        exit(0);
+                    }
+                    close(pipefd[1]);
+                }
+
+                if ( c->in == Tpipe || c->in == TpipeErr ) {
                 	close(oldpipefd[1]);
                 }
 
-                if ( c->out == Tpipe ) {
+                if ( c->out == Tpipe || c->out == TpipeErr ) {
                 	close(pipefd[0]);
                 }
+                
 
                 // execute the command
-                execvp(c->args[0], c->args);
+                status = execvp(c->args[0], c->args);
+                if ( status < 0 ) {
+                    perror("Exec");
+                    exit(0);
+                }
                 // error is executable/command not found 
                 if ( errno == 2 ) 
                     fprintf(stderr, "command not found\n");
@@ -108,6 +214,7 @@ static void execCmd(Cmd c)
                 exit(EXIT_FAILURE);
             default:
                 wait(NULL);
+                // deal with pipes
                 if ( c->in == Tpipe ) {
                 	close(oldpipefd[0]);
             	}
