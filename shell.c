@@ -24,6 +24,7 @@ int handle_unsetenv(char **);
 int handle_setenv(char **);
 int handle_getenv(char **);
 int handle_exit(char **);
+int handle_cd(char **);
 
 inbuilt_cmd inbuilt_cmds[] = {
   {"getenv", handle_getenv},
@@ -31,13 +32,24 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"unsetenv", handle_unsetenv},
   {"fg",     NULL},
   {"bg",     NULL},
-  {"cd",     NULL},
+  {"cd",     handle_cd},
   {"end",    handle_exit},
   {"exit",   handle_exit}
 };
 
 int handle_exit(char **args){
     exit(0);
+}
+
+int handle_cd(char **args){
+    int status;
+    //todo handle error when args doesn't have 1 and 2
+    status = chdir(args[1]);
+    if ( status < 0 ) {
+        perror("cd");
+        return -1;
+    }
+    return 0;
 }
 
 int handle_setenv(char **args)
