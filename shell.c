@@ -11,9 +11,56 @@
 
 int pipefd[2];
 int oldpipefd[2];
-int status;
+int status,i;
 int fdin, fdout;
 struct sigaction sa;
+
+typedef struct {
+  char *cmd;
+  int (*handler)(char **);
+} inbuilt_cmd;
+
+int handle_setenv(char **);
+int handle_getenv(char **);
+int handle_exit(char **);
+
+inbuilt_cmd inbuilt_cmds[] = {
+  {"getenv", handle_getenv},
+  {"setenv", handle_setenv},
+  {"fg",     NULL},
+  {"bg",     NULL},
+  {"cd",     NULL},
+  {"end",    handle_exit},
+  {"exit",   handle_exit}
+};
+
+int handle_exit(char **args){
+    exit(0);
+}
+
+int handle_setenv(char **args)
+{
+    int status;
+    status = setenv(args[1],args[2],1);
+    //todo handle error when args doesn't have 1 and 2
+    if ( status < 0 ) {
+        perror("setenv");
+        return -1;
+    }
+    return 0;
+}
+
+int handle_getenv(char **args)
+{   
+    char *var;
+    var = getenv(args[1]);
+    if ( var == NULL ) {
+        fprintf(stderr,"cannot find env var %s\n", args[1]);
+        return -1;
+    }
+    printf("%s\n",var);
+    return 0;
+}
 
 static void execCmd(Cmd c)
 {
@@ -56,10 +103,18 @@ static void execCmd(Cmd c)
         }
         putchar('\n');
         // this driver understands one command
-        // exit if exit
-        if ( !strcmp(c->args[0], "end") || !strcmp(c->args[0], "exit") )
-           exit(0);
-        
+
+        //check for builtin commands
+        for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
+            if( strcmp(c->args[0],inbuilt_cmds[i].cmd)==0 ) {
+                if( inbuilt_cmds[i].handler != NULL ) {
+                    inbuilt_cmds[i].handler(c->args);
+                }
+                return;
+            }
+        }
+                
+        //handle pipe
         if ( c->out == Tpipe || c->out == TpipeErr ){ 
         	pipe(pipefd);
         }
@@ -209,7 +264,6 @@ static void execCmd(Cmd c)
                 	close(pipefd[0]);
                 }
                 
-
                 // execute the command
                 status = execvp(c->args[0], c->args);
                 // error is executable/command not found 
