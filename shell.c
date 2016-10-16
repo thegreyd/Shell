@@ -60,7 +60,7 @@ static void execCmd(Cmd c)
         if ( !strcmp(c->args[0], "end") || !strcmp(c->args[0], "exit") )
            exit(0);
         
-        if ( c->out == Tpipe ){ 
+        if ( c->out == Tpipe || c->out == TpipeErr ){ 
         	pipe(pipefd);
         }
 
@@ -220,12 +220,12 @@ static void execCmd(Cmd c)
                 exit(EXIT_FAILURE);
             default:
                 wait(NULL);
-                // deal with pipes
-                if ( c->in == Tpipe ) {
+                // deal with pipes and pipeerr
+                if ( c->in == Tpipe || c->in == TpipeErr) {
                 	close(oldpipefd[0]);
             	}
 
-            	if ( c->out == Tpipe ) {
+            	if ( c->out == Tpipe || c->out == TpipeErr) {
                 	oldpipefd[0] = pipefd[0];
 		            oldpipefd[1] = pipefd[1];
 		            close(pipefd[1]);
