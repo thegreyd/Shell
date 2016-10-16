@@ -7,12 +7,14 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 
 int pipefd[2];
 int oldpipefd[2];
 int status;
 int fdin, fdout;
-        
+struct sigaction sa;
+
 static void execCmd(Cmd c)
 {
     int i;
@@ -65,7 +67,15 @@ static void execCmd(Cmd c)
         childpid = fork();
         switch ( childpid ) {
             case 0:
-            	//deal with input redirect
+            	// handle signals
+                sa.sa_handler = SIG_DFL;
+                status = sigaction(SIGINT, &sa, NULL);
+
+                if ( status == -1 ) {
+                    perror("Error: cannot handle SIGINT");
+                }
+
+                //deal with input redirect
                 if ( c->in == Tin ) {
                     fdin = open(c->infile,O_RDONLY);
                     if ( fdin < 0 ) {
@@ -196,10 +206,6 @@ static void execCmd(Cmd c)
 
                 // execute the command
                 status = execvp(c->args[0], c->args);
-                if ( status < 0 ) {
-                    perror("Exec");
-                    exit(0);
-                }
                 // error is executable/command not found 
                 if ( errno == 2 ) 
                     fprintf(stderr, "command not found\n");
@@ -249,6 +255,14 @@ int main(int argc, char *argv[])
 {
     Pipe p;
     char *host;
+
+    sa.sa_handler = SIG_IGN;
+    status = sigaction(SIGINT, &sa, NULL);
+
+    if ( status == -1 ) {
+        perror("Error: cannot handle SIGINT");
+    }
+
     host = getenv("USER");
 
     while ( 1 ) {
