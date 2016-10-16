@@ -20,6 +20,7 @@ typedef struct {
   int (*handler)(char **);
 } inbuilt_cmd;
 
+int handle_unsetenv(char **);
 int handle_setenv(char **);
 int handle_getenv(char **);
 int handle_exit(char **);
@@ -27,6 +28,7 @@ int handle_exit(char **);
 inbuilt_cmd inbuilt_cmds[] = {
   {"getenv", handle_getenv},
   {"setenv", handle_setenv},
+  {"unsetenv", handle_unsetenv},
   {"fg",     NULL},
   {"bg",     NULL},
   {"cd",     NULL},
@@ -41,10 +43,22 @@ int handle_exit(char **args){
 int handle_setenv(char **args)
 {
     int status;
-    status = setenv(args[1],args[2],1);
     //todo handle error when args doesn't have 1 and 2
+    status = setenv(args[1],args[2],1);
     if ( status < 0 ) {
         perror("setenv");
+        return -1;
+    }
+    return 0;
+}
+
+int handle_unsetenv(char **args)
+{
+    int status;
+    //todo handle error when args doesn't have 1
+    status = unsetenv(args[1]);
+    if ( status < 0 ) {
+        perror("unsetenv");
         return -1;
     }
     return 0;
@@ -53,6 +67,7 @@ int handle_setenv(char **args)
 int handle_getenv(char **args)
 {   
     char *var;
+    //todo handle error when args doesn't have 1
     var = getenv(args[1]);
     if ( var == NULL ) {
         fprintf(stderr,"cannot find env var %s\n", args[1]);
