@@ -68,13 +68,19 @@ static void execCmd(Cmd c)
         switch ( childpid ) {
             case 0:
             	// handle signals
+                // set handler to default behaviour
                 sa.sa_handler = SIG_DFL;
+                //handle sigint cntl+c child doesn't ignore
                 status = sigaction(SIGINT, &sa, NULL);
-
                 if ( status == -1 ) {
                     perror("Error: cannot handle SIGINT");
                 }
-
+                //handle sigquit cntl+"\" child doesn't ignore
+                status = sigaction(SIGQUIT, &sa, NULL);
+                if ( status == -1 ) {
+                    perror("Error: cannot handle SIGQUIT");
+                }
+                
                 //deal with input redirect
                 if ( c->in == Tin ) {
                     fdin = open(c->infile,O_RDONLY);
@@ -257,10 +263,15 @@ int main(int argc, char *argv[])
     char *host;
 
     sa.sa_handler = SIG_IGN;
+    //handle sigint cntl+c parent ignores
     status = sigaction(SIGINT, &sa, NULL);
-
     if ( status == -1 ) {
         perror("Error: cannot handle SIGINT");
+    }
+    //handle sigquit cntl+"\" parent ignores
+    status = sigaction(SIGQUIT, &sa, NULL);
+    if ( status == -1 ) {
+        perror("Error: cannot handle SIGQUIT");
     }
 
     host = getenv("USER");
