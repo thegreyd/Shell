@@ -360,31 +360,36 @@ int main(int argc, char *argv[])
 
     //handle .ushrc
     if ( find_config() == 0 ) {
+        int lines, config, prev_in;
         fprintf(stderr, ".ushrc found!\n");
+        
+        //open file and read lines
         FILE* conf = fopen(home_config_path,"r");
     	int lines = count_lines(conf);
         fclose(conf);
-        //int lines = 2;
-        int config = open(home_config_path,O_RDONLY);
-    	int prev_in = dup(STDIN_FILENO);
-        printf("prev_in %d\n", prev_in);
+        
+        //redirect file to stdin
+        config = open(home_config_path,O_RDONLY);
+    	prev_in = dup(STDIN_FILENO);
         fcntl(prev_in, FD_CLOEXEC);
         dup2(config, STDIN_FILENO);
         close(config);
-        int i=0;
-        while( i<lines ) {
+        
+        //run execute loop
+        while( lines>0 ) {
       		p = parse();
       		execPipe(p);
       		freePipe(p);
-      		i+=1;
+      		lines-=1;
       	}
-      	fprintf(stderr,"hello\n");
+
+      	//restore stdin
     	dup2(prev_in, STDIN_FILENO);
     	close(prev_in);	
     }
 
 
-    //normal 
+    //normal shell
     host = getenv("USER");
 
     while ( 1 ) {
