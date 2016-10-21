@@ -18,14 +18,14 @@ char* home_config_path;
 
 typedef struct {
   char *cmd;
-  int (*handler)(char **);
+  int (*handler)(int, char **);
 } inbuilt_cmd;
 
-int handle_unsetenv(char **);
-int handle_setenv(char **);
-int handle_getenv(char **);
-int handle_exit(char **);
-int handle_cd(char **);
+int handle_unsetenv(int, char **);
+int handle_setenv(int, char **);
+int handle_getenv(int, char **);
+int handle_exit(int, char **);
+int handle_cd(int, char **);
 int find_config();
 int count_lines(FILE*);
 
@@ -40,11 +40,11 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"exit",   handle_exit}
 };
 
-int handle_exit(char **args){
+int handle_exit(int argc, char ** args){
     exit(0);
 }
 
-int handle_cd(char **args){
+int handle_cd(int argc, char **args){
     int status;
     //todo handle error when args doesn't have 1 and 2
     status = chdir(args[1]);
@@ -55,7 +55,7 @@ int handle_cd(char **args){
     return 0;
 }
 
-int handle_setenv(char **args)
+int handle_setenv(int argc, char **args)
 {
     int status;
     //todo handle error when args doesn't have 1 and 2
@@ -67,7 +67,7 @@ int handle_setenv(char **args)
     return 0;
 }
 
-int handle_unsetenv(char **args)
+int handle_unsetenv(int argc, char **args)
 {
     int status;
     //todo handle error when args doesn't have 1
@@ -79,7 +79,7 @@ int handle_unsetenv(char **args)
     return 0;
 }
 
-int handle_getenv(char **args)
+int handle_getenv(int argc, char **args)
 {   
     char *var;
     //todo handle error when args doesn't have 1
@@ -138,7 +138,7 @@ static void execCmd(Cmd c)
         for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
             if( strcmp(c->args[0],inbuilt_cmds[i].cmd)==0 ) {
                 if( inbuilt_cmds[i].handler != NULL ) {
-                    inbuilt_cmds[i].handler(c->args);
+                    inbuilt_cmds[i].handler(c->nargs, c->args);
                 }
                 return;
             }
