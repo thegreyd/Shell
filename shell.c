@@ -14,6 +14,7 @@ int oldpipefd[2];
 int status,i;
 int fdin, fdout;
 struct sigaction sa;
+char* home_config_path;
 
 typedef struct {
   char *cmd;
@@ -25,6 +26,8 @@ int handle_setenv(char **);
 int handle_getenv(char **);
 int handle_exit(char **);
 int handle_cd(char **);
+int find_config();
+int count_lines(FILE*);
 
 inbuilt_cmd inbuilt_cmds[] = {
   {"getenv", handle_getenv},
@@ -355,6 +358,33 @@ int main(int argc, char *argv[])
         perror("Error: cannot handle SIGQUIT");
     }
 
+    //handle .ushrc
+    if ( find_config() == 0 ) {
+        fprintf(stderr, ".ushrc found!\n");
+        FILE* conf = fopen(home_config_path,"r");
+    	int lines = count_lines(conf);
+        fclose(conf);
+        //int lines = 2;
+        int config = open(home_config_path,O_RDONLY);
+    	int prev_in = dup(STDIN_FILENO);
+        printf("prev_in %d\n", prev_in);
+        fcntl(prev_in, FD_CLOEXEC);
+        dup2(config, STDIN_FILENO);
+        close(config);
+        int i=0;
+        while( i<lines ) {
+      		p = parse();
+      		execPipe(p);
+      		freePipe(p);
+      		i+=1;
+      	}
+      	fprintf(stderr,"hello\n");
+    	dup2(prev_in, STDIN_FILENO);
+    	close(prev_in);	
+    }
+
+
+    //normal 
     host = getenv("USER");
 
     while ( 1 ) {
@@ -364,5 +394,28 @@ int main(int argc, char *argv[])
         freePipe(p);
     }
 }
+
+int find_config(){
+	int status;
+	home_config_path = getenv("HOME");
+	strcat(home_config_path, "/");
+	strcat(home_config_path, ".ushrc");
+	return access(home_config_path, F_OK );
+	//returns 0 if success -1 if failure
+}
+
+int count_lines(FILE* f) {
+	int lines = 0;
+	int ch = 0;
+  	while(!feof(f)){
+  		ch = fgetc(f);
+  		if(ch == '\n') {
+    		lines++;
+  		}
+	}
+
+	return lines;
+}
+
 
 /*........................ end of main.c ....................................*/
