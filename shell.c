@@ -365,7 +365,7 @@ int main(int argc, char *argv[])
         
         //open file and read lines
         FILE* conf = fopen(home_config_path,"r");
-    	int lines = count_lines(conf);
+    	lines = count_lines(conf);
         fclose(conf);
         
         //redirect file to stdin
