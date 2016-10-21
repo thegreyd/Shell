@@ -387,7 +387,17 @@ static void execCmd(Cmd c)
                 	close(pipefd[0]);
                 }
                 
-                // execute the command
+                // execute builtin command
+                for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
+                    if( strcmp(c->args[0],inbuilt_cmds[i].cmd)==0 ) {
+                        if( inbuilt_cmds[i].handler != NULL ) {
+                            inbuilt_cmds[i].handler(c->nargs, c->args);
+                            exit(0);
+                        }
+                    }
+                }
+                
+                //exec
                 status = execvp(c->args[0], c->args);
                 // error is executable/command not found 
                 if ( errno == 2 ) 
