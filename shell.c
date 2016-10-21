@@ -11,10 +11,10 @@
 
 int pipefd[2];
 int oldpipefd[2];
-int status,i;
-int fdin, fdout;
+int status;
+int fdin, fdout, prev_in, prev_out, prev_err;
 struct sigaction sa;
-char* home_config_path;
+char home_config_path[1000];
 
 typedef struct {
   char *cmd;
@@ -26,6 +26,7 @@ int handle_setenv(int, char **);
 int handle_getenv(int, char **);
 int handle_exit(int, char **);
 int handle_cd(int, char **);
+int handle_where(int, char **);
 int find_config();
 int count_lines(FILE*);
 
@@ -36,17 +37,56 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"fg",     NULL},
   {"bg",     NULL},
   {"cd",     handle_cd},
+  {"where",  handle_where},
   {"end",    handle_exit},
   {"exit",   handle_exit}
 };
 
-int handle_exit(int argc, char ** args){
+int handle_exit(int argc, char ** args)
+{
     exit(0);
 }
 
-int handle_cd(int argc, char **args){
+int handle_where(int argc, char **args) 
+{
+	if(argc<2){
+		return -1;
+    }
+
+	int i;
+	for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
+        if( strcmp(args[1],inbuilt_cmds[i].cmd)==0 ) {
+            printf("%s: shell built-in command.\n", args[1]);
+            return 0;
+        }
+    }
+
+    int status = fork();
+
+    switch( status ) {
+    	case 0:
+    		//child
+    		args[0] = "which";
+    		execvp(args[0], args);
+    	case -1:
+    		//error
+    		fprintf(stderr, "Fork error\n");
+            exit(EXIT_FAILURE);
+        default:
+        	//parent
+        	wait(NULL);
+        	return 0;
+    }
+	return 0;
+}
+
+int handle_cd(int argc, char **args)
+{
     int status;
-    //todo handle error when args doesn't have 1 and 2
+    if(argc<2){
+    	args[1] = getenv("HOME");
+    }
+    
     status = chdir(args[1]);
     if ( status < 0 ) {
         perror("cd");
@@ -57,6 +97,10 @@ int handle_cd(int argc, char **args){
 
 int handle_setenv(int argc, char **args)
 {
+    if(argc<3){
+		return -1;
+    }
+
     int status;
     //todo handle error when args doesn't have 1 and 2
     status = setenv(args[1],args[2],1);
@@ -69,6 +113,10 @@ int handle_setenv(int argc, char **args)
 
 int handle_unsetenv(int argc, char **args)
 {
+    if(argc<2){
+		return -1;
+    }
+
     int status;
     //todo handle error when args doesn't have 1
     status = unsetenv(args[1]);
@@ -81,11 +129,15 @@ int handle_unsetenv(int argc, char **args)
 
 int handle_getenv(int argc, char **args)
 {   
+    if(argc<2){
+		return -1;
+    }
+
     char *var;
     //todo handle error when args doesn't have 1
     var = getenv(args[1]);
     if ( var == NULL ) {
-        fprintf(stderr,"cannot find env var %s\n", args[1]);
+        fprintf(stderr,"cannot find %s\n", args[1]);
         return -1;
     }
     printf("%s\n",var);
@@ -135,15 +187,99 @@ static void execCmd(Cmd c)
         // this driver understands one command
 
         //check for builtin commands
-        for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
-            if( strcmp(c->args[0],inbuilt_cmds[i].cmd)==0 ) {
-                if( inbuilt_cmds[i].handler != NULL ) {
-                    inbuilt_cmds[i].handler(c->nargs, c->args);
-                }
-                return;
-            }
-        }
-                
+        // if no pipe then execute in parent shell
+		if ( c->out != Tpipe && c->out != TpipeErr && c->in != Tpipe && c->in != TpipeErr) {   
+		    for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
+		        if( strcmp(c->args[0],inbuilt_cmds[i].cmd)==0 ) {
+		            if( inbuilt_cmds[i].handler != NULL ) {
+		                
+                        //deal with output and error redirect
+                        if ( c->out == Tout || c->out == Tapp || c->out == ToutErr || c->out == TappErr ) {
+                            //open file in append mode
+                            if ( c->out == Tapp || c->out == TappErr ) {
+                                fdout = open(c->outfile, O_WRONLY|O_CREAT|O_APPEND, 0666);
+                            }
+                            //open file in truncate mode
+                            else {
+                                fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);    
+                            }
+
+                            if ( fdout < 0 ) {
+                                perror("open error");
+                                exit(0);
+                            }
+
+                            //save stdout
+                            prev_out = dup(STDOUT_FILENO);
+                            fcntl(prev_out, FD_CLOEXEC);
+                            
+                            status = dup2(fdout, STDOUT_FILENO);
+                            if ( status < 0 ) {
+                                perror("dup2");
+                                exit(0);   
+                            }
+                            
+                            //check for stderr
+                            if ( c->out == ToutErr || c->out == TappErr ) {
+                                prev_err = dup(STDERR_FILENO);
+                                fcntl(prev_err, FD_CLOEXEC);
+
+                                status = dup2(fdout, STDERR_FILENO);
+                                if ( status < 0 ) {
+                                    perror("dup2");
+                                    exit(0);   
+                                }    
+                            }
+
+                            close(fdout);
+
+                        }
+
+                        //deal with input redirect
+                        if ( c->in == Tin ) {
+                            fdin = open(c->infile,O_RDONLY);
+                            if ( fdin < 0 ) {
+                                perror("open error");
+                                exit(0);
+                            }
+                            
+                            //save stdout
+                            prev_in = dup(STDIN_FILENO);
+                            fcntl(prev_in, FD_CLOEXEC);
+                            
+                            status = dup2(fdin, STDIN_FILENO);
+                            if ( status < 0 ) {
+                                perror("dup2");
+                                exit(0);   
+                            }
+                            close(fdin);
+                        }
+
+                        //execute command
+                        inbuilt_cmds[i].handler(c->nargs, c->args);
+
+                        //restore stdout and stderr
+                        if ( c->out == Tout || c->out == Tapp || c->out == ToutErr || c->out == TappErr) {
+                            dup2(prev_out, STDOUT_FILENO);
+                            close(prev_out);
+
+                            //check for stderr
+                            if( c->out == ToutErr || c->out == TappErr ) {
+                                dup2(prev_err, STDERR_FILENO);
+                                close(prev_err);
+                            }   
+                        }
+
+                        //restore stdin
+                        if ( c->in == Tin ) {
+                            dup2(prev_in, STDIN_FILENO);
+                            close(prev_in);
+                        }
+		            }
+		            return;
+		        }
+		    }
+        }        
         //handle pipe
         if ( c->out == Tpipe || c->out == TpipeErr ){ 
         	pipe(pipefd);
@@ -182,10 +318,17 @@ static void execCmd(Cmd c)
                     close(fdin);
                 }
 
-                //deal with output redirect
-                if ( c->out == Tout ) {
-                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-                    if ( fdin < 0 ) {
+                //deal with output and error redirect
+                if ( c->out == Tout || c->out == Tapp || c->out == ToutErr || c->out == TappErr ) {
+                    if ( c->out == Tapp || c->out == TappErr ) {
+                        fdout = open(c->outfile, O_WRONLY|O_CREAT|O_APPEND, 0666);
+                    }
+
+                    else {
+                        fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);    
+                    }
+
+                    if ( fdout < 0 ) {
                         perror("open error");
                         exit(0);
                     }
@@ -195,62 +338,17 @@ static void execCmd(Cmd c)
                         perror("dup2");
                         exit(0);   
                     }
-                    close(fdout);
-                }
+                    
+                    if ( c->out == ToutErr || c->out == TappErr ) {
+                        status = dup2(fdout, STDERR_FILENO);
+                        if ( status < 0 ) {
+                            perror("dup2");
+                            exit(0);   
+                        }    
+                    }
 
-                //deal with output append redirect
-                if ( c->out == Tapp ) {
-                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_APPEND, 0666);
-                    if ( fdin < 0 ) {
-                        perror("open error");
-                        exit(0);
-                    }
-                    status = dup2(fdout, STDOUT_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2"); 
-                        exit(0);   
-                    }
                     close(fdout);
-                }
 
-                //deal with outputerror redirect
-                if ( c->out == ToutErr ) {
-                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-                    if ( fdin < 0 ) {
-                        perror("open error");
-                        exit(0);
-                    }
-                    status = dup2(fdout, STDOUT_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);   
-                    }
-                    status = dup2(fdout, STDERR_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);   
-                    }
-                    close(fdout);
-                }
-
-                //deal with output append error redirect
-                if ( c->out == TappErr ) {
-                    fdout = open(c->outfile, O_WRONLY|O_CREAT|O_APPEND, 0666);
-                    if ( fdin < 0 ) {
-                        perror("open error");
-                        exit(0);
-                    }
-                    status = dup2(fdout, STDOUT_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);   
-                    }
-                    status = dup2(fdout, STDERR_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);   
-                    }
-                    close(fdout);
                 }
 
                 // deal with pipes and pipeErr redirects
@@ -263,26 +361,21 @@ static void execCmd(Cmd c)
                     close(oldpipefd[0]);
                 }
 
-                if ( c->out == Tpipe ) {
+                if ( c->out == Tpipe || c->out == TpipeErr ) {
             		status = dup2(pipefd[1],  STDOUT_FILENO);	
                     if ( status < 0 ) {
                         perror("dup2");
                         exit(0);
                     }
-                    close(pipefd[1]);
-                }
 
-                if ( c->out == TpipeErr ) {
-                    status = dup2(pipefd[1],  STDOUT_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);
+                    if ( c->out == TpipeErr ) {
+                        status = dup2(pipefd[1],  STDERR_FILENO);      
+                        if ( status < 0 ) {
+                            perror("dup2");
+                            exit(0);
+                        }
                     }
-                    status = dup2(pipefd[1],  STDERR_FILENO);      
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);
-                    }
+
                     close(pipefd[1]);
                 }
 
@@ -360,7 +453,7 @@ int main(int argc, char *argv[])
 
     //handle .ushrc
     if ( find_config() == 0 ) {
-        int lines, config, prev_in;
+        int lines, config;
         fprintf(stderr, ".ushrc found!\n");
         
         //open file and read lines
@@ -402,7 +495,7 @@ int main(int argc, char *argv[])
 
 int find_config(){
 	int status;
-	home_config_path = getenv("HOME");
+	strcpy(home_config_path, getenv("HOME"));
 	strcat(home_config_path, "/");
 	strcat(home_config_path, ".ushrc");
 	return access(home_config_path, F_OK );
