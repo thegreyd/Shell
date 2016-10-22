@@ -97,8 +97,11 @@ int handle_cd(int argc, char **args)
 
 int handle_setenv(int argc, char **args)
 {
-    if(argc<3){
+    if(argc<2){
 		return -1;
+    }
+    else if(argc<3){
+    	args[2] = "NULL";
     }
 
     int status;
