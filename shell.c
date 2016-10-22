@@ -449,6 +449,10 @@ int main(int argc, char *argv[])
     Pipe p;
     char *host;
 
+    //set buffer off
+    setbuf(stdin, NULL);
+
+    //handle signals
     sa.sa_handler = SIG_IGN;
     //handle sigint cntl+c parent ignores
     status = sigaction(SIGINT, &sa, NULL);
@@ -475,11 +479,11 @@ int main(int argc, char *argv[])
         config = open(home_config_path,O_RDONLY);
     	prev_in = dup(STDIN_FILENO);
         fcntl(prev_in, FD_CLOEXEC);
-        dup2(config, STDIN_FILENO);
+		dup2(config, STDIN_FILENO);
         close(config);
         
-        //run execute loop
-        while( lines>0 ) {
+		//run execute loop
+        while( lines > 0 ) {
       		p = parse();
       		execPipe(p);
       		freePipe(p);
@@ -491,12 +495,11 @@ int main(int argc, char *argv[])
     	close(prev_in);	
     }
 
-
-    //normal shell
+	//normal shell
     host = getenv("USER");
 
     while ( 1 ) {
-        fprintf(stderr,"%s%% ", host);
+        fprintf(stdout,"%s%% ", host);
         p = parse();
         execPipe(p);
         freePipe(p);
