@@ -190,8 +190,9 @@ static void execCmd(Cmd c)
         // this driver understands one command
 
         //check for builtin commands
-        // if no pipe then execute in parent shell
-		if ( c->out != Tpipe && c->out != TpipeErr && c->in != Tpipe && c->in != TpipeErr) {   
+        // if last command then execute in parent shell
+		//if ( c->out != Tpipe && c->out != TpipeErr && c->in != Tpipe && c->in != TpipeErr) {   
+        if ( c->next == NULL ) {   
 		    for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
 		        if( strcmp(c->args[0],inbuilt_cmds[i].cmd)==0 ) {
 		            if( inbuilt_cmds[i].handler != NULL ) {
