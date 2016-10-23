@@ -473,7 +473,7 @@ static void execPipe(Pipe p)
 int main(int argc, char *argv[])
 {
     Pipe p;
-    char *host;
+    char host[1024];
 
     //set buffer off
     setbuf(stdin, NULL);
@@ -532,7 +532,8 @@ int main(int argc, char *argv[])
     }
 
 	//normal shell
-    host = getenv("USER");
+    //host = getenv("USER");
+    gethostname(host, 1023);
 
     while ( 1 ) {
         fprintf(stdout,"%s%% ", host);
