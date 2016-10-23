@@ -5,11 +5,11 @@
 
 CC=gcc
 CFLAGS=-g
-SRC=shell.c parse.c parse.h
-OBJ=shell.o parse.o
+SRC=ush.c parse.c parse.h
+OBJ=ush.o parse.o
 
-shell:	$(OBJ)
+ush:	$(OBJ)
 	$(CC) -o $@ $(OBJ)
 
 clean:
-	\rm $(OBJ) shell
+	\rm $(OBJ) ush
