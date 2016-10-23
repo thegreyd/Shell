@@ -219,9 +219,10 @@ static void execCmd(Cmd c)
     int i;
     pid_t childpid;
     if ( c ) {
-        fprintf(stderr,"%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
+        /*fprintf(stderr,"%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
         if ( c->in == Tin )
             fprintf(stderr,"<(%s) ", c->infile);
+        
         if ( c->out != Tnil )
             switch ( c->out ) {
                 case Tout:
@@ -254,6 +255,7 @@ static void execCmd(Cmd c)
             fprintf(stderr,"\b]");
         }
         putchar('\n');
+        */
         // this driver understands one command
 
         //check for builtin commands
@@ -516,12 +518,12 @@ static void execPipe(Pipe p)
     if ( p == NULL )
         return;
 
-    fprintf(stderr,"Begin pipe%s\n", p->type == Pout ? "" : " Error");
+    //fprintf(stderr,"Begin pipe%s\n", p->type == Pout ? "" : " Error");
     for ( c = p->head; c != NULL; c = c->next ) {
-        fprintf(stderr,"  Cmd #%d: ", ++i);
+    //    fprintf(stderr,"  Cmd #%d: ", ++i);
         execCmd(c);
     }
-    fprintf(stderr,"End pipe\n");
+    //fprintf(stderr,"End pipe\n");
     execPipe(p->next);
 }
 
