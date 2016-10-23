@@ -64,7 +64,9 @@ int handle_nice(int argc, char ** args)
 		}
 	}
 	else if ( argc < 3 ) {
-		status = nice(args[1]);
+		int num = (int) strtol(args[1], (char **)NULL, 10);
+		fprintf(stderr,"priority num: %d\n", num);
+		status = nice(num);
 		if ( status < 0 ) {
 			perror("handle_nice");
 			exit(0);
@@ -77,9 +79,9 @@ int handle_nice(int argc, char ** args)
 			case 0:
 				//input is "nice <number> <cmd>"
 				//child execute "nice -n <number> <cmd>"
-				args[3] = args[2]
-				args[2] = args[1]
-				args[1] = "-n"
+				args[3] = args[2];
+				args[2] = args[1];
+				args[1] = "-n";
 				execvp(args[0], args);
 			case -1:
 				//error
