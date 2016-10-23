@@ -36,8 +36,8 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"unsetenv", handle_unsetenv},
   {"fg",     NULL},
   {"bg",     NULL},
-  {"kill",	 NULL}.
-  {"jobs", 	 NULL}
+  {"kill",	 NULL},
+  {"jobs", 	 NULL},
   {"cd",     handle_cd},
   {"where",  handle_where},
   {"end",    handle_exit},
