@@ -36,6 +36,8 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"unsetenv", handle_unsetenv},
   {"fg",     NULL},
   {"bg",     NULL},
+  {"kill",	 NULL}.
+  {"jobs", 	 NULL}
   {"cd",     handle_cd},
   {"where",  handle_where},
   {"end",    handle_exit},
@@ -487,6 +489,16 @@ int main(int argc, char *argv[])
     status = sigaction(SIGQUIT, &sa, NULL);
     if ( status == -1 ) {
         perror("Error: cannot handle SIGQUIT");
+    }
+    //handle sigterm parent ignores
+    status = sigaction(SIGTERM, &sa, NULL);
+    if ( status == -1 ) {
+        perror("Error: cannot handle SIGTERM");
+    }
+    //handle sigtstp cntl+"z" parent ignores
+    status = sigaction(SIGTSTP, &sa, NULL);
+    if ( status == -1 ) {
+        perror("Error: cannot handle SIGTSTP");
     }
 
     //handle .ushrc
