@@ -39,7 +39,8 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"cd",     handle_cd},
   {"where",  handle_where},
   {"end",    handle_exit},
-  {"exit",   handle_exit}
+  {"exit",   handle_exit},
+  {"logout", handle_exit}
 };
 
 int handle_exit(int argc, char ** args)
@@ -65,8 +66,10 @@ int handle_where(int argc, char **args)
 
     switch( status ) {
     	case 0:
-    		//child
+    		//child execute "which -a <cmd>"
     		args[0] = "which";
+    		args[2] = args[1];
+    		args[1] = "-a";
     		execvp(args[0], args);
     	case -1:
     		//error
@@ -98,8 +101,25 @@ int handle_cd(int argc, char **args)
 int handle_setenv(int argc, char **args)
 {
     if(argc<2){
-		return -1;
+		int status = fork();
+
+	    switch( status ) {
+	    	case 0:
+	    		//child exec env
+	    		args[0] = "env";
+	    		execvp(args[0], args);
+	    	case -1:
+	    		//error
+	    		fprintf(stderr, "Fork error\n");
+	            exit(EXIT_FAILURE);
+	        default:
+	        	//parent
+	        	wait(NULL);
+	        	return 0;
+	    }
+		return 0;
     }
+
     else if(argc<3){
     	args[2] = "NULL";
     }
