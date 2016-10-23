@@ -529,6 +529,7 @@ static void execPipe(Pipe p)
 
 int main(int argc, char *argv[])
 {
+    int output;
     Pipe p;
     char host[1024];
 
@@ -593,9 +594,11 @@ int main(int argc, char *argv[])
 	//normal shell
     //host = getenv("USER");
     gethostname(host, 1023);
-
+    output = ( argc > 1 ) ? 0 : 1;
     while ( 1 ) {
-        fprintf(stdout,"%s%% ", host);
+        if ( output==1 )  {
+            fprintf(stdout,"%s%% ", host);
+        }
         p = parse();
         execPipe(p);
         freePipe(p);
