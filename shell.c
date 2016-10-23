@@ -530,8 +530,10 @@ int main(int argc, char *argv[])
     Pipe p;
     char host[1024];
 
-    //set buffer off
+    //set buffers off
     setbuf(stdin, NULL);
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
 
     //handle signals
     sa.sa_handler = SIG_IGN;
