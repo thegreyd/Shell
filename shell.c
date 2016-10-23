@@ -27,6 +27,7 @@ int handle_getenv(int, char **);
 int handle_exit(int, char **);
 int handle_cd(int, char **);
 int handle_where(int, char **);
+int handle_nice(int, char **);
 int find_config();
 int count_lines(FILE*);
 
@@ -34,6 +35,7 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"getenv", handle_getenv},
   {"setenv", handle_setenv},
   {"unsetenv", handle_unsetenv},
+  {"nice", handle_nice},
   {"fg",     NULL},
   {"bg",     NULL},
   {"kill",	 NULL},
@@ -50,9 +52,51 @@ int handle_exit(int argc, char ** args)
     exit(0);
 }
 
+int handle_nice(int argc, char ** args)
+{
+	int status;
+	
+	if ( argc < 2 ) {
+		status = nice(4);
+		if ( status < 0 ) {
+			perror("handle_nice");
+			exit(0);
+		}
+	}
+	else if ( argc < 3 ) {
+		status = nice(args[1]);
+		if ( status < 0 ) {
+			perror("handle_nice");
+			exit(0);
+		}
+	}
+	else {
+		status = fork();
+
+		switch( status ) {
+			case 0:
+				//input is "nice <number> <cmd>"
+				//child execute "nice -n <number> <cmd>"
+				args[3] = args[2]
+				args[2] = args[1]
+				args[1] = "-n"
+				execvp(args[0], args);
+			case -1:
+				//error
+				fprintf(stderr, "Fork error\n");
+		        exit(EXIT_FAILURE);
+		    default:
+		    	//parent
+		    	wait(NULL);
+		}
+	}
+
+	return 0;	
+}
+
 int handle_where(int argc, char **args) 
 {
-	if(argc<2){
+	if( argc < 2 ){
 		return -1;
     }
 
@@ -80,7 +124,6 @@ int handle_where(int argc, char **args)
         default:
         	//parent
         	wait(NULL);
-        	return 0;
     }
 	return 0;
 }
@@ -327,6 +370,16 @@ static void execCmd(Cmd c)
                 if ( status == -1 ) {
                     perror("Error: cannot handle SIGQUIT");
                 }
+                //handle sigterm child doesn't ignore
+			    status = sigaction(SIGTERM, &sa, NULL);
+			    if ( status == -1 ) {
+			        perror("Error: cannot handle SIGTERM");
+			    }
+			    //handle sigtstp cntl+"z" child doesn't ignore
+			    status = sigaction(SIGTSTP, &sa, NULL);
+			    if ( status == -1 ) {
+			        perror("Error: cannot handle SIGTSTP");
+			    }
                 
                 //deal with input redirect
                 if ( c->in == Tin ) {
