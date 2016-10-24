@@ -594,7 +594,7 @@ int main(int argc, char *argv[])
 	//normal shell
     //host = getenv("USER");
     gethostname(host, 1023);
-    output = ( argc > 1 ) ? 0 : 1;
+    output = isatty(STDIN_FILENO);
     while ( 1 ) {
         if ( output==1 )  {
             fprintf(stdout,"%s%% ", host);
