@@ -28,6 +28,8 @@ int handle_exit(int, char **);
 int handle_cd(int, char **);
 int handle_where(int, char **);
 int handle_nice(int, char **);
+int handle_pwd(int, char **);
+int handle_echo(int, char **);
 int find_config();
 int count_lines(FILE*);
 
@@ -35,17 +37,40 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"getenv", handle_getenv},
   {"setenv", handle_setenv},
   {"unsetenv", handle_unsetenv},
-  {"nice", handle_nice},
+  {"nice",   handle_nice},
   {"fg",     NULL},
   {"bg",     NULL},
   {"kill",	 NULL},
   {"jobs", 	 NULL},
+  {"echo",   handle_echo},
+  //{"pwd",    handle_pwd},
   {"cd",     handle_cd},
   {"where",  handle_where},
   {"end",    handle_exit},
   {"exit",   handle_exit},
   {"logout", handle_exit}
 };
+
+int handle_echo(int argc, char ** args) 
+{
+    int i=1;
+    while ( i < argc ) {
+        printf("%s", args[i]);
+        if ( i==argc-1 ) {
+            printf("\n");
+        }
+        else {
+            printf(" ");
+        }
+        i+=1;
+    }
+    return 0;
+}
+
+int handle_pwd(int argc, char ** args)
+{
+    return 0;
+}
 
 int handle_exit(int argc, char ** args)
 {
