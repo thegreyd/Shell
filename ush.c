@@ -43,7 +43,7 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"kill",	 NULL},
   {"jobs", 	 NULL},
   {"echo",   handle_echo},
-  //{"pwd",    handle_pwd},
+  {"pwd",    handle_pwd},
   {"cd",     handle_cd},
   {"where",  handle_where},
   {"end",    handle_exit},
@@ -69,7 +69,13 @@ int handle_echo(int argc, char ** args)
 
 int handle_pwd(int argc, char ** args)
 {
-    return 0;
+    char *result = realpath(".", NULL);
+    if ( result != NULL ) {
+        printf("%s\n", result);
+        free(result);
+        return 0;
+    }
+    return -1;
 }
 
 int handle_exit(int argc, char ** args)
