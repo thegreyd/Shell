@@ -15,6 +15,7 @@ int status;
 int fdin, fdout, prev_in, prev_out, prev_err;
 struct sigaction sa;
 char home_config_path[1000];
+extern char** environ;
 
 typedef struct {
   char *cmd;
@@ -179,23 +180,28 @@ int handle_cd(int argc, char **args)
 int handle_setenv(int argc, char **args)
 {
     if(argc<2){
-		int status = fork();
+        int i = 0;
+        while(environ[i]) {
+            printf("%s\n", environ[i++]);
+        }
+        return 0;
+		// int status = fork();
 
-	    switch( status ) {
-	    	case 0:
-	    		//child exec env
-	    		args[0] = "env";
-	    		execvp(args[0], args);
-	    	case -1:
-	    		//error
-	    		fprintf(stderr, "Fork error\n");
-	            exit(EXIT_FAILURE);
-	        default:
-	        	//parent
-	        	wait(NULL);
-	        	return 0;
-	    }
-		return 0;
+	 //    switch( status ) {
+	 //    	case 0:
+	 //    		//child exec env
+	 //    		args[0] = "env";
+	 //    		execvp(args[0], args);
+	 //    	case -1:
+	 //    		//error
+	 //    		fprintf(stderr, "Fork error\n");
+	 //            exit(EXIT_FAILURE);
+	 //        default:
+	 //        	//parent
+	 //        	wait(NULL);
+	 //        	return 0;
+	 //    }
+		
     }
 
     else if(argc<3){
