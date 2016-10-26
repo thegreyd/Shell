@@ -150,7 +150,6 @@ int handle_where(int argc, char **args)
 	for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
         if( strcmp(args[1],inbuilt_cmds[i].cmd)==0 ) {
             printf("%s: shell built-in command.\n", args[1]);
-            return 0;
         }
     }
 
