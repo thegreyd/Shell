@@ -472,6 +472,9 @@ static void execCmd(Cmd c)
                     }
                 }
                 
+                //sleep
+                sleep(5);
+
                 //exec
                 status = execvp(c->args[0], c->args);
                 // error is executable/command not found 
@@ -487,7 +490,11 @@ static void execCmd(Cmd c)
                 fprintf(stderr, "Fork error\n");
                 exit(EXIT_FAILURE);
             default:
-                wait(NULL);
+                printf("child process created %d\n", childpid);
+                if (c->next==NULL){
+                    //wait(NULL);
+                    waitpid(childpid,NULL,0);
+                }
                 // deal with pipes and pipeerr
                 if ( c->in == Tpipe || c->in == TpipeErr) {
                 	close(oldpipefd[0]);
