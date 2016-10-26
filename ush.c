@@ -9,6 +9,9 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
 
 int pipefd[2];
 int oldpipefd[2];
@@ -87,44 +90,45 @@ int handle_exit(int argc, char ** args)
 
 int handle_nice(int argc, char ** args)
 {
-	int status;
-	
-	if ( argc < 2 ) {
-		status = nice(4);
-		if ( status < 0 ) {
-			perror("handle_nice");
-			exit(0);
-		}
-	}
-	else if ( argc < 3 ) {
-		int num = (int) strtol(args[1], (char **)NULL, 10);
-		fprintf(stderr,"priority num: %d\n", num);
-		status = nice(num);
-		if ( status < 0 ) {
-			perror("handle_nice");
-			exit(0);
-		}
+	int status,num;
+    pid_t child;
+	if ( argc < 3 ) {
+		if ( argc < 2 ) {
+            status = setpriority(PRIO_PROCESS, 0, 4);    
+        }
+        else {
+            num = (int) strtol(args[1], (char **)NULL, 10);
+            //fprintf(stderr,"priority num: %d\n", num);
+            status = setpriority(PRIO_PROCESS, 0, num);
+        }
 	}
 	else {
-		status = fork();
-
-		switch( status ) {
+        num = (int) strtol(args[1], (char **)NULL, 10);
+        child = fork();
+        switch( child ) {
 			case 0:
 				//input is "nice <number> <cmd>"
 				//child execute "nice -n <number> <cmd>"
-				args[3] = args[2];
-				args[2] = args[1];
-				args[1] = "-n";
-				execvp(args[0], args);
+				execvp(args[2], args+2);
 			case -1:
 				//error
-				fprintf(stderr, "Fork error\n");
-		        exit(EXIT_FAILURE);
+				perror("nice-fork");
+		        return -1;
 		    default:
 		    	//parent
-		    	wait(NULL);
+		    	status = setpriority(PRIO_PROCESS, child, num);
+                wait(NULL);
+                if ( status>0 ){
+                    return 0;
+                }
+                return -1;       
 		}
+
 	}
+    if ( status < 0 ) {
+        perror("nice");
+        return -1;
+    }
 
 	return 0;	
 }
@@ -149,25 +153,6 @@ int handle_where(int argc, char **args)
             return 0;
         }
     }
-    /*
-    int status = fork();
-
-    switch( status ) {
-    	case 0:
-    		//child execute "which -a <cmd>"
-    		args[0] = "which";
-    		args[2] = args[1];
-    		args[1] = "-a";
-    		execvp(args[0], args);
-    	case -1:
-    		//error
-    		fprintf(stderr, "Fork error\n");
-            exit(EXIT_FAILURE);
-        default:
-        	//parent
-        	wait(NULL);
-    }
-    */
 
     char *path = getenv("PATH");
     char *item = NULL;
@@ -255,10 +240,9 @@ int handle_getenv(int argc, char **args)
     }
 
     char *var;
-    //todo handle error when args doesn't have 1
     var = getenv(args[1]);
     if ( var == NULL ) {
-        fprintf(stderr,"cannot find %s\n", args[1]);
+        //fprintf(stderr,"cannot find %s\n", args[1]);
         return -1;
     }
     printf("%s\n",var);
@@ -270,48 +254,6 @@ static void execCmd(Cmd c)
     int i;
     pid_t childpid;
     if ( c ) {
-        /*fprintf(stderr,"%s%s ", c->exec == Tamp ? "BG " : "", c->args[0]);
-        if ( c->in == Tin )
-            fprintf(stderr,"<(%s) ", c->infile);
-        
-        if ( c->out != Tnil )
-            switch ( c->out ) {
-                case Tout:
-                    fprintf(stderr,">(%s) ", c->outfile);
-                    break;
-                case Tapp:
-                    fprintf(stderr,">>(%s) ", c->outfile);
-                    break;
-                case ToutErr:
-                    fprintf(stderr,">&(%s) ", c->outfile);
-                    break;
-                case TappErr:
-                    fprintf(stderr,">>&(%s) ", c->outfile);
-                    break;
-                case Tpipe:
-                    fprintf(stderr,"| ");
-                    break;
-                case TpipeErr:
-                    fprintf(stderr,"|& ");
-                    break;
-                default:
-                    fprintf(stderr, "Shouldn't get here\n");
-                    exit(-1);
-            }
-
-        if ( c->nargs > 1 ) {
-            fprintf(stderr,"[");
-            for ( i = 1; c->args[i] != NULL; i++ )
-                fprintf(stderr,"%d:%s,", i, c->args[i]);
-            fprintf(stderr,"\b]");
-        }
-        putchar('\n');
-        */
-        // this driver understands one command
-
-        //check for builtin commands
-        // if last command then execute in parent shell
-		//if ( c->out != Tpipe && c->out != TpipeErr && c->in != Tpipe && c->in != TpipeErr) {   
         if ( c->next == NULL ) {   
 		    for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
 		        if( strcmp(c->args[0],inbuilt_cmds[i].cmd)==0 ) {
