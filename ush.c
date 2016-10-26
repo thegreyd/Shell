@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 int pipefd[2];
 int oldpipefd[2];
@@ -128,6 +129,13 @@ int handle_nice(int argc, char ** args)
 	return 0;	
 }
 
+
+int is_file(const char* path) {
+    struct stat buf;
+    stat(path, &buf);
+    return S_ISREG(buf.st_mode);
+}
+
 int handle_where(int argc, char **args) 
 {
 	if( argc < 2 ){
@@ -141,7 +149,7 @@ int handle_where(int argc, char **args)
             return 0;
         }
     }
-
+    /*
     int status = fork();
 
     switch( status ) {
@@ -159,6 +167,30 @@ int handle_where(int argc, char **args)
         	//parent
         	wait(NULL);
     }
+    */
+
+    char *path = getenv("PATH");
+    char *item = NULL;
+    int found  = 0;
+
+    if (!path) {
+        return -1;
+    }
+
+    path = strdup(path);
+
+    char real_path[4096]; // or PATH_MAX or something smarter
+    for (item = strtok(path, ":"); item; item = strtok(NULL, ":")){
+        sprintf(real_path, "%s/%s", item, args[1]);
+        if ( is_file(real_path) && !(
+               access(real_path, F_OK) 
+            || access(real_path, X_OK))) // check if the file exists and is executable
+        {
+            printf("%s\n",real_path);
+        }
+    }
+
+    free(path);
 	return 0;
 }
 
@@ -185,31 +217,13 @@ int handle_setenv(int argc, char **args)
             printf("%s\n", environ[i++]);
         }
         return 0;
-		// int status = fork();
-
-	 //    switch( status ) {
-	 //    	case 0:
-	 //    		//child exec env
-	 //    		args[0] = "env";
-	 //    		execvp(args[0], args);
-	 //    	case -1:
-	 //    		//error
-	 //    		fprintf(stderr, "Fork error\n");
-	 //            exit(EXIT_FAILURE);
-	 //        default:
-	 //        	//parent
-	 //        	wait(NULL);
-	 //        	return 0;
-	 //    }
-		
-    }
+	}
 
     else if(argc<3){
     	args[2] = "NULL";
     }
 
     int status;
-    //todo handle error when args doesn't have 1 and 2
     status = setenv(args[1],args[2],1);
     if ( status < 0 ) {
         perror("setenv");
