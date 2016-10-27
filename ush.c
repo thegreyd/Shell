@@ -1,3 +1,9 @@
+/*
+Author: Siddharth Sharma
+Assignment 3, CS501, NCSU
+2016
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
