@@ -15,7 +15,7 @@
 
 int pipefd[2];
 int oldpipefd[2];
-int status;
+int status, interactive;
 int fdin, fdout, prev_in, prev_out, prev_err;
 struct sigaction sa;
 char home_config_path[1000];
@@ -353,43 +353,46 @@ static void execCmd(Cmd c)
         childpid = fork();
         switch ( childpid ) {
             case 0:
-            	// handle signals
-                // set handler to default behaviour
-                sa.sa_handler = SIG_DFL;
-                //handle sigint cntl+c child doesn't ignore
-                status = sigaction(SIGINT, &sa, NULL);
-                if ( status == -1 ) {
-                    perror("Error: cannot handle SIGINT");
-                }
-                //handle sigquit cntl+"\" child doesn't ignore
-                status = sigaction(SIGQUIT, &sa, NULL);
-                if ( status == -1 ) {
-                    perror("Error: cannot handle SIGQUIT");
-                }
-                //handle sigterm child doesn't ignore
-			    status = sigaction(SIGTERM, &sa, NULL);
-			    if ( status == -1 ) {
-			        perror("Error: cannot handle SIGTERM");
-			    }
-			    //handle sigtstp cntl+"z" child doesn't ignore
-			    status = sigaction(SIGTSTP, &sa, NULL);
-			    if ( status == -1 ) {
-			        perror("Error: cannot handle SIGTSTP");
-			    }
-                //handle sigttin 
-                status = sigaction(SIGTTIN, &sa, NULL);
-                if ( status == -1 ) {
-                    perror("Error: cannot handle SIGTTIN");
-                }
-                //handle sigttou 
-                status = sigaction(SIGTTOU, &sa, NULL);
-                if ( status == -1 ) {
-                    perror("Error: cannot handle SIGTTOU");
-                }
-                //handle sigchld 
-                status = sigaction(SIGCHLD, &sa, NULL);
-                if ( status == -1 ) {
-                    perror("Error: cannot handle SIGCHLD");
+            	if ( interactive == 1 ) {
+
+                    // if interactive handle signals
+                    // set handler to default behaviour
+                    sa.sa_handler = SIG_DFL;
+                    //handle sigint cntl+c child doesn't ignore
+                    status = sigaction(SIGINT, &sa, NULL);
+                    if ( status == -1 ) {
+                        perror("Error: cannot handle SIGINT");
+                    }
+                    //handle sigquit cntl+"\" child doesn't ignore
+                    status = sigaction(SIGQUIT, &sa, NULL);
+                    if ( status == -1 ) {
+                        perror("Error: cannot handle SIGQUIT");
+                    }
+                    //handle sigterm child doesn't ignore
+    			    status = sigaction(SIGTERM, &sa, NULL);
+    			    if ( status == -1 ) {
+    			        perror("Error: cannot handle SIGTERM");
+    			    }
+    			    //handle sigtstp cntl+"z" child doesn't ignore
+    			    status = sigaction(SIGTSTP, &sa, NULL);
+    			    if ( status == -1 ) {
+    			        perror("Error: cannot handle SIGTSTP");
+    			    }
+                    //handle sigttin 
+                    status = sigaction(SIGTTIN, &sa, NULL);
+                    if ( status == -1 ) {
+                        perror("Error: cannot handle SIGTTIN");
+                    }
+                    //handle sigttou 
+                    status = sigaction(SIGTTOU, &sa, NULL);
+                    if ( status == -1 ) {
+                        perror("Error: cannot handle SIGTTOU");
+                    }
+                    //handle sigchld 
+                    status = sigaction(SIGCHLD, &sa, NULL);
+                    if ( status == -1 ) {
+                        perror("Error: cannot handle SIGCHLD");
+                    }
                 }
                 
                 //deal with input redirect
@@ -538,52 +541,16 @@ static void execPipe(Pipe p)
 
 int main(int argc, char *argv[])
 {
-    int output;
     Pipe p;
     char host[1024];
+
+    //see if interaactive or input from file
+    interactive = isatty(STDIN_FILENO);
 
     //set buffers off
     setbuf(stdin, NULL);
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
-
-    //handle signals
-    sa.sa_handler = SIG_IGN;
-    //handle sigint cntl+c parent ignores
-    status = sigaction(SIGINT, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGINT");
-    }
-    //handle sigquit cntl+"\" parent ignores
-    status = sigaction(SIGQUIT, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGQUIT");
-    }
-    //handle sigterm parent ignores
-    status = sigaction(SIGTERM, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGTERM");
-    }
-    //handle sigtstp cntl+"z" parent ignores
-    status = sigaction(SIGTSTP, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGTSTP");
-    }
-    //handle sigttin parent ignores
-    status = sigaction(SIGTTIN, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGTTIN");
-    }
-    //handle sigttou parent ignores
-    status = sigaction(SIGTTOU, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGTTOU");
-    }
-    //handle sigchld parent ignores
-    status = sigaction(SIGCHLD, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGCHLD");
-    }
 
     //handle .ushrc
     if ( find_config() == 0 ) {
@@ -616,11 +583,51 @@ int main(int argc, char *argv[])
     }
 
 	//normal shell
-    //host = getenv("USER");
-    gethostname(host, 1023);
-    output = isatty(STDIN_FILENO);
+    if ( interactive ==1 ) {
+        //handle signals
+        sa.sa_handler = SIG_IGN;
+        //handle sigint cntl+c parent ignores
+        status = sigaction(SIGINT, &sa, NULL);
+        if ( status == -1 ) {
+            perror("Error: cannot handle SIGINT");
+        }
+        //handle sigquit cntl+"\" parent ignores
+        status = sigaction(SIGQUIT, &sa, NULL);
+        if ( status == -1 ) {
+            perror("Error: cannot handle SIGQUIT");
+        }
+        //handle sigterm parent ignores
+        status = sigaction(SIGTERM, &sa, NULL);
+        if ( status == -1 ) {
+            perror("Error: cannot handle SIGTERM");
+        }
+        //handle sigtstp cntl+"z" parent ignores
+        status = sigaction(SIGTSTP, &sa, NULL);
+        if ( status == -1 ) {
+            perror("Error: cannot handle SIGTSTP");
+        }
+        //handle sigttin parent ignores
+        status = sigaction(SIGTTIN, &sa, NULL);
+        if ( status == -1 ) {
+            perror("Error: cannot handle SIGTTIN");
+        }
+        //handle sigttou parent ignores
+        status = sigaction(SIGTTOU, &sa, NULL);
+        if ( status == -1 ) {
+            perror("Error: cannot handle SIGTTOU");
+        }
+        //handle sigchld parent ignores
+        status = sigaction(SIGCHLD, &sa, NULL);
+        if ( status == -1 ) {
+            perror("Error: cannot handle SIGCHLD");
+        }
+        
+        //store hostname
+        gethostname(host, 1023);
+    }
+    
     while ( 1 ) {
-        if ( output==1 )  {
+        if ( interactive == 1 )  {
             fprintf(stdout,"%s%% ", host);
         }
         p = parse();
