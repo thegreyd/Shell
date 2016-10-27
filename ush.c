@@ -15,12 +15,12 @@
 
 int pipefd[2];
 int oldpipefd[2];
-int status, interactive;
+int status, interactive, shell_terminal;
 int fdin, fdout, prev_in, prev_out, prev_err;
 struct sigaction sa;
 char home_config_path[1000];
 extern char** environ;
-pid_t shell_pgid;
+pid_t shell_pgid,pipe_group;
 
 typedef struct {
   char *cmd;
@@ -249,9 +249,9 @@ int handle_getenv(int argc, char **args)
     return 0;
 }
 
-static void execCmd(Cmd c)
+static void execCmd(Cmd c, int first)
 {
-    int i;
+    int i, foreground=1;
     pid_t childpid;
     if ( c ) {
         if ( c->next == NULL ) {   
@@ -351,10 +351,37 @@ static void execCmd(Cmd c)
         	pipe(pipefd);
         }
 
+        //change process groups
+        if ( c->exec == Tamp ) {
+            foreground = 0;
+        }
+        
+
         childpid = fork();
         switch ( childpid ) {
             case 0:
             	if ( interactive == 1 ) {
+                    childpid = getpid ();
+                    pid_t pgid;
+                    if (first == 1){ 
+                        pgid = childpid;
+                    }
+                    else {
+                        pgid = pipe_group;
+                    }
+                    
+                    status = setpgid (childpid, pgid);
+                    if(status<0){
+                        perror("setpgid");
+                    }
+                    
+                    printf("c->in=%d\n", c->in);
+                    if ( foreground == 0 ){
+                        printf("c->in=%d\n", c->in);
+                    }
+                    pgid = getpgid(childpid);
+                    printf("Fork:%s\npid:%d pgid:%d\n", c->args[0],childpid, pgid);
+            
 
                     // if interactive handle signals
                     // set handler to default behaviour
@@ -506,6 +533,14 @@ static void execCmd(Cmd c)
                 fprintf(stderr, "Fork error\n");
                 exit(EXIT_FAILURE);
             default:
+                if ( interactive == 1 ) {
+                    if (first == 1){ 
+                        printf("parent: wrote pid of first to group_pid!\n");
+                        pipe_group = childpid;
+                    }
+                }
+                
+
                 if (c->next==NULL){
                     waitpid(childpid,NULL,0);
                 }
@@ -534,7 +569,10 @@ static void execPipe(Pipe p)
     //fprintf(stderr,"Begin pipe%s\n", p->type == Pout ? "" : " Error");
     for ( c = p->head; c != NULL; c = c->next ) {
     //    fprintf(stderr,"  Cmd #%d: ", ++i);
-        execCmd(c);
+        if ( c == p->head )
+            execCmd(c, 1);    
+        else
+            execCmd(c, 0);
     }
     //fprintf(stderr,"End pipe\n");
     execPipe(p->next);
@@ -547,6 +585,7 @@ int main(int argc, char *argv[])
 
     //see if interaactive or input from file
     interactive = isatty(STDIN_FILENO);
+    shell_terminal = STDIN_FILENO;
 
     //set buffers off
     setbuf(stdin, NULL);
@@ -585,8 +624,11 @@ int main(int argc, char *argv[])
 
 	//normal shell
     if ( interactive ==1 ) {
-
-        while (tcgetpgrp (STDIN_FILENO) != (shell_pgid = getpgrp ()))
+        pid_t pid = getpid ();
+        pid_t pgid = getpgrp();
+        printf("Shell\npid:%d pgid:%d\n", pid, pgid);
+            
+        while (tcgetpgrp (shell_terminal) != (shell_pgid = getpgrp ()))
             kill (- shell_pgid, SIGTTIN);
 
 
@@ -636,10 +678,10 @@ int main(int argc, char *argv[])
         }
 
         /* Grab control of the terminal.  */
-        tcsetpgrp (STDIN_FILENO, shell_pgid);
+        tcsetpgrp (shell_terminal, shell_pgid);
         
         //store hostname
-        gethostname(host, 1023);
+        gethostname(host, 1023);    
     }
     
     while ( 1 ) {
