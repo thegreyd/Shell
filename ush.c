@@ -376,6 +376,21 @@ static void execCmd(Cmd c)
 			    if ( status == -1 ) {
 			        perror("Error: cannot handle SIGTSTP");
 			    }
+                //handle sigttin 
+                status = sigaction(SIGTTIN, &sa, NULL);
+                if ( status == -1 ) {
+                    perror("Error: cannot handle SIGTTIN");
+                }
+                //handle sigttou 
+                status = sigaction(SIGTTOU, &sa, NULL);
+                if ( status == -1 ) {
+                    perror("Error: cannot handle SIGTTOU");
+                }
+                //handle sigchld 
+                status = sigaction(SIGCHLD, &sa, NULL);
+                if ( status == -1 ) {
+                    perror("Error: cannot handle SIGCHLD");
+                }
                 
                 //deal with input redirect
                 if ( c->in == Tin ) {
@@ -472,9 +487,6 @@ static void execCmd(Cmd c)
                     }
                 }
                 
-                //sleep
-                sleep(5);
-
                 //exec
                 status = execvp(c->args[0], c->args);
                 // error is executable/command not found 
@@ -490,9 +502,7 @@ static void execCmd(Cmd c)
                 fprintf(stderr, "Fork error\n");
                 exit(EXIT_FAILURE);
             default:
-                printf("child process created %d\n", childpid);
                 if (c->next==NULL){
-                    //wait(NULL);
                     waitpid(childpid,NULL,0);
                 }
                 // deal with pipes and pipeerr
@@ -558,6 +568,21 @@ int main(int argc, char *argv[])
     status = sigaction(SIGTSTP, &sa, NULL);
     if ( status == -1 ) {
         perror("Error: cannot handle SIGTSTP");
+    }
+    //handle sigttin parent ignores
+    status = sigaction(SIGTTIN, &sa, NULL);
+    if ( status == -1 ) {
+        perror("Error: cannot handle SIGTTIN");
+    }
+    //handle sigttou parent ignores
+    status = sigaction(SIGTTOU, &sa, NULL);
+    if ( status == -1 ) {
+        perror("Error: cannot handle SIGTTOU");
+    }
+    //handle sigchld parent ignores
+    status = sigaction(SIGCHLD, &sa, NULL);
+    if ( status == -1 ) {
+        perror("Error: cannot handle SIGCHLD");
     }
 
     //handle .ushrc
