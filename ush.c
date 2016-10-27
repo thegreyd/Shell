@@ -20,6 +20,7 @@ int fdin, fdout, prev_in, prev_out, prev_err;
 struct sigaction sa;
 char home_config_path[1000];
 extern char** environ;
+pid_t shell_pgid;
 
 typedef struct {
   char *cmd;
@@ -584,6 +585,11 @@ int main(int argc, char *argv[])
 
 	//normal shell
     if ( interactive ==1 ) {
+
+        while (tcgetpgrp (STDIN_FILENO) != (shell_pgid = getpgrp ()))
+            kill (- shell_pgid, SIGTTIN);
+
+
         //handle signals
         sa.sa_handler = SIG_IGN;
         //handle sigint cntl+c parent ignores
@@ -621,6 +627,16 @@ int main(int argc, char *argv[])
         if ( status == -1 ) {
             perror("Error: cannot handle SIGCHLD");
         }
+
+        shell_pgid = getpid ();
+        if (setpgid (shell_pgid, shell_pgid) < 0)
+        {
+          perror ("Couldn't put the shell in its own process group");
+          exit (1);
+        }
+
+        /* Grab control of the terminal.  */
+        tcsetpgrp (STDIN_FILENO, shell_pgid);
         
         //store hostname
         gethostname(host, 1023);
