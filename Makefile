@@ -1,7 +1,4 @@
 # Makefile for ush
-#
-# Vincent W. Freeh
-# 
 
 CC=gcc
 CFLAGS=-g

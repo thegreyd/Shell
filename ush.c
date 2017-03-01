@@ -1,3 +1,9 @@
+/*
+Author: Siddharth Sharma
+Assignment 3, CS501, NCSU
+2016
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -12,14 +18,15 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-
 int pipefd[2];
 int oldpipefd[2];
-int status;
+int status, interactive, shell_terminal, forks;
 int fdin, fdout, prev_in, prev_out, prev_err;
 struct sigaction sa;
 char home_config_path[1000];
+int jobs[1000];
 extern char** environ;
+pid_t shell_pgid,pipe_group;
 
 typedef struct {
   char *cmd;
@@ -35,6 +42,8 @@ int handle_where(int, char **);
 int handle_nice(int, char **);
 int handle_pwd(int, char **);
 int handle_echo(int, char **);
+int handle_bg(int, char **);
+int handle_fg(int, char **);
 int find_config();
 int count_lines(FILE*);
 
@@ -43,8 +52,8 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"setenv", handle_setenv},
   {"unsetenv", handle_unsetenv},
   {"nice",   handle_nice},
-  {"fg",     NULL},
-  {"bg",     NULL},
+  {"fg",     handle_fg},
+  {"bg",     handle_bg},
   {"kill",	 NULL},
   {"jobs", 	 NULL},
   {"echo",   handle_echo},
@@ -55,6 +64,18 @@ inbuilt_cmd inbuilt_cmds[] = {
   {"exit",   handle_exit},
   {"logout", handle_exit}
 };
+
+int handle_bg(int argc, char ** args)
+{
+    printf("bg: No current job.\n");
+    return 0;
+}
+
+int handle_fg(int argc, char ** args)
+{
+    printf("fg: No current job.\n");
+    return 0;
+}
 
 int handle_echo(int argc, char ** args) 
 {
@@ -248,10 +269,15 @@ int handle_getenv(int argc, char **args)
     return 0;
 }
 
-static void execCmd(Cmd c)
+static void execCmd(Cmd c, int first)
 {
-    int i;
+    int i, foreground=1;
     pid_t childpid;
+    
+    if ( c->exec == Tamp ) {
+        foreground = 0;
+    }
+    
     if ( c ) {
         if ( c->next == NULL ) {   
 		    for(i = 0; i < sizeof(inbuilt_cmds)/sizeof(*inbuilt_cmds); i++) {
@@ -260,13 +286,12 @@ static void execCmd(Cmd c)
 		                
                         //deal with output and error redirect
                         if ( c->out == Tout || c->out == Tapp || c->out == ToutErr || c->out == TappErr ) {
-                            //open file in append mode
                             if ( c->out == Tapp || c->out == TappErr ) {
                                 fdout = open(c->outfile, O_WRONLY|O_CREAT|O_APPEND, 0666);
                             }
-                            //open file in truncate mode
+
                             else {
-                                fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);    
+                                fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);
                             }
 
                             if ( fdout < 0 ) {
@@ -277,23 +302,13 @@ static void execCmd(Cmd c)
                             //save stdout
                             prev_out = dup(STDOUT_FILENO);
                             fcntl(prev_out, FD_CLOEXEC);
-                            
-                            status = dup2(fdout, STDOUT_FILENO);
-                            if ( status < 0 ) {
-                                perror("dup2");
-                                exit(0);   
-                            }
+                            dup2(fdout, STDOUT_FILENO);
                             
                             //check for stderr
                             if ( c->out == ToutErr || c->out == TappErr ) {
                                 prev_err = dup(STDERR_FILENO);
                                 fcntl(prev_err, FD_CLOEXEC);
-
-                                status = dup2(fdout, STDERR_FILENO);
-                                if ( status < 0 ) {
-                                    perror("dup2");
-                                    exit(0);   
-                                }    
+                                dup2(fdout, STDERR_FILENO);
                             }
 
                             close(fdout);
@@ -311,12 +326,7 @@ static void execCmd(Cmd c)
                             //save stdout
                             prev_in = dup(STDIN_FILENO);
                             fcntl(prev_in, FD_CLOEXEC);
-                            
-                            status = dup2(fdin, STDIN_FILENO);
-                            if ( status < 0 ) {
-                                perror("dup2");
-                                exit(0);   
-                            }
+                            dup2(fdin, STDIN_FILENO);
                             close(fdin);
                         }
 
@@ -341,7 +351,16 @@ static void execCmd(Cmd c)
                             close(prev_in);
                         }
 		            }
-		            return;
+		            
+                    for ( i = 0; i < forks;i++ ) {
+                        wait(NULL);
+                    }
+                    
+                    if (interactive == 1) {
+                        tcsetpgrp (shell_terminal, shell_pgid);    
+                    } 
+                    
+                    return;
 		        }
 		    }
         }        
@@ -350,46 +369,56 @@ static void execCmd(Cmd c)
         	pipe(pipefd);
         }
 
+        forks+=1;
         childpid = fork();
         switch ( childpid ) {
             case 0:
-            	// handle signals
-                // set handler to default behaviour
-                sa.sa_handler = SIG_DFL;
-                //handle sigint cntl+c child doesn't ignore
-                status = sigaction(SIGINT, &sa, NULL);
-                if ( status == -1 ) {
-                    perror("Error: cannot handle SIGINT");
+            	if ( interactive == 1 ) {
+                    //setting process groups
+                    pid_t pgid;
+                    childpid = getpid ();
+                    if (first == 1){ 
+                        pgid = childpid;
+                    }
+                    else {
+                        pgid = pipe_group;
+                    }
+                    setpgid (childpid, pgid);
+                    //if ending with a & block output and input
+                    if ( foreground == 1 ){
+                        tcsetpgrp (shell_terminal, pgid);
+                    }
+                    else {
+                        if (c->in == 12) {
+                            c->in = Tin;
+                            c->infile = "/dev/null";
+                        }
+                        if (c->out == 12) {
+                            c->out = Tout;
+                            c->outfile = "/dev/null";
+                        }
+                    }
+                    
+                    // set handler to default behaviour
+                    sa.sa_handler = SIG_DFL;
+                    status = sigaction(SIGINT, &sa, NULL);
+                    status = sigaction(SIGQUIT, &sa, NULL);
+                    status = sigaction(SIGTERM, &sa, NULL);
+    			    status = sigaction(SIGTTIN, &sa, NULL);
+                    status = sigaction(SIGTTOU, &sa, NULL);
+                    status = sigaction(SIGCHLD, &sa, NULL);
+                    status = sigaction(SIGTSTP, &sa, NULL);
                 }
-                //handle sigquit cntl+"\" child doesn't ignore
-                status = sigaction(SIGQUIT, &sa, NULL);
-                if ( status == -1 ) {
-                    perror("Error: cannot handle SIGQUIT");
-                }
-                //handle sigterm child doesn't ignore
-			    status = sigaction(SIGTERM, &sa, NULL);
-			    if ( status == -1 ) {
-			        perror("Error: cannot handle SIGTERM");
-			    }
-			    //handle sigtstp cntl+"z" child doesn't ignore
-			    status = sigaction(SIGTSTP, &sa, NULL);
-			    if ( status == -1 ) {
-			        perror("Error: cannot handle SIGTSTP");
-			    }
                 
                 //deal with input redirect
                 if ( c->in == Tin ) {
                     fdin = open(c->infile,O_RDONLY);
                     if ( fdin < 0 ) {
-                        perror("open error");
+                        perror("open");
                         exit(0);
                     }
                     
-                    status = dup2(fdin, STDIN_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);   
-                    }
+                    dup2(fdin, STDIN_FILENO);
                     close(fdin);
                 }
 
@@ -400,57 +429,34 @@ static void execCmd(Cmd c)
                     }
 
                     else {
-                        fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);    
+                        fdout = open(c->outfile, O_WRONLY|O_CREAT|O_TRUNC, 0666);
                     }
 
                     if ( fdout < 0 ) {
-                        perror("open error");
+                        perror("open");
                         exit(0);
                     }
                     
-                    status = dup2(fdout, STDOUT_FILENO);
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);   
-                    }
+                    dup2(fdout, STDOUT_FILENO);
                     
                     if ( c->out == ToutErr || c->out == TappErr ) {
-                        status = dup2(fdout, STDERR_FILENO);
-                        if ( status < 0 ) {
-                            perror("dup2");
-                            exit(0);   
-                        }    
+                        dup2(fdout, STDERR_FILENO);
                     }
 
                     close(fdout);
-
                 }
 
                 // deal with pipes and pipeErr redirects
                 if ( c->in == Tpipe || c->in == TpipeErr ) {
-                	status = dup2(oldpipefd[0], STDIN_FILENO);
-                	if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);
-                    }
-                    close(oldpipefd[0]);
+                	dup2(oldpipefd[0], STDIN_FILENO);
+                	close(oldpipefd[0]);
                 }
 
                 if ( c->out == Tpipe || c->out == TpipeErr ) {
-            		status = dup2(pipefd[1],  STDOUT_FILENO);	
-                    if ( status < 0 ) {
-                        perror("dup2");
-                        exit(0);
-                    }
-
+            		dup2(pipefd[1],  STDOUT_FILENO);	
                     if ( c->out == TpipeErr ) {
-                        status = dup2(pipefd[1],  STDERR_FILENO);      
-                        if ( status < 0 ) {
-                            perror("dup2");
-                            exit(0);
-                        }
+                        dup2(pipefd[1],  STDERR_FILENO);      
                     }
-
                     close(pipefd[1]);
                 }
 
@@ -487,7 +493,23 @@ static void execCmd(Cmd c)
                 fprintf(stderr, "Fork error\n");
                 exit(EXIT_FAILURE);
             default:
-                wait(NULL);
+                if ( interactive == 1 ) {
+                    if (first == 1){ 
+                        pipe_group = childpid;
+                    }
+                    else {
+                        if ( getpgid(childpid) != pipe_group ) {
+                            setpgid(childpid, pipe_group);
+                        }
+                    }
+                }
+                
+                if (c->next==NULL){
+                    for ( i=0; i<forks;i++ ) {
+                        wait(NULL);
+                    }
+                    tcsetpgrp (shell_terminal, shell_pgid);
+                }
                 // deal with pipes and pipeerr
                 if ( c->in == Tpipe || c->in == TpipeErr) {
                 	close(oldpipefd[0]);
@@ -510,53 +532,33 @@ static void execPipe(Pipe p)
     if ( p == NULL )
         return;
 
-    //fprintf(stderr,"Begin pipe%s\n", p->type == Pout ? "" : " Error");
+    forks = 0;
     for ( c = p->head; c != NULL; c = c->next ) {
-    //    fprintf(stderr,"  Cmd #%d: ", ++i);
-        execCmd(c);
+        if ( c == p->head )
+            execCmd(c, 1);    
+        else
+            execCmd(c, 0);
     }
-    //fprintf(stderr,"End pipe\n");
     execPipe(p->next);
 }
 
 int main(int argc, char *argv[])
 {
-    int output;
     Pipe p;
     char host[1024];
+
+    //see if interaactive or input from file
+    shell_terminal = STDIN_FILENO;
+    interactive = isatty(STDIN_FILENO);
 
     //set buffers off
     setbuf(stdin, NULL);
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 
-    //handle signals
-    sa.sa_handler = SIG_IGN;
-    //handle sigint cntl+c parent ignores
-    status = sigaction(SIGINT, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGINT");
-    }
-    //handle sigquit cntl+"\" parent ignores
-    status = sigaction(SIGQUIT, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGQUIT");
-    }
-    //handle sigterm parent ignores
-    status = sigaction(SIGTERM, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGTERM");
-    }
-    //handle sigtstp cntl+"z" parent ignores
-    status = sigaction(SIGTSTP, &sa, NULL);
-    if ( status == -1 ) {
-        perror("Error: cannot handle SIGTSTP");
-    }
-
     //handle .ushrc
     if ( find_config() == 0 ) {
         int lines, config;
-        fprintf(stderr, ".ushrc found!\n");
         
         //open file and read lines
         FILE* conf = fopen(home_config_path,"r");
@@ -584,11 +586,34 @@ int main(int argc, char *argv[])
     }
 
 	//normal shell
-    //host = getenv("USER");
-    gethostname(host, 1023);
-    output = isatty(STDIN_FILENO);
+    if ( interactive ==1 ) {
+        //check if ush is not in background
+        while (tcgetpgrp (shell_terminal) != (shell_pgid = getpgrp ()))
+            kill (- shell_pgid, SIGTTIN);
+
+        //handle signals
+        sa.sa_handler = SIG_IGN;
+        status = sigaction(SIGINT, &sa, NULL);
+        status = sigaction(SIGQUIT, &sa, NULL);
+        status = sigaction(SIGTERM, &sa, NULL);
+        status = sigaction(SIGTSTP, &sa, NULL);
+        status = sigaction(SIGTTIN, &sa, NULL);
+        status = sigaction(SIGTTOU, &sa, NULL);
+        status = sigaction(SIGCHLD, &sa, NULL);
+        
+        //put shell into its own process group
+        shell_pgid = getpid ();
+        setpgid (shell_pgid, shell_pgid);
+        
+        /* Grab control of the terminal.  */
+        tcsetpgrp (shell_terminal, shell_pgid);
+        
+        //get hostname
+        gethostname(host, 1023);    
+    }
+    
     while ( 1 ) {
-        if ( output==1 )  {
+        if ( interactive == 1 )  {
             fprintf(stdout,"%s%% ", host);
         }
         p = parse();
