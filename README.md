@@ -1,13 +1,7 @@
-Implement the micro-shell, ush (ie, μ-shell).
+A micro-shell, ush (ie, μ-shell), modeled after csh.
 
 Description:
-Implement the Unix shell described in the accompanying man page. Do not to implement job control. Therefore, do not implement the following:
-
-    the fg command,
-    the bg command,
-    the kill command,
-    the jobs command, or
-    the & operator. 
+Implement the Unix shell described in the accompanying man page. 
 
     Summary of details enumerated in the manual page (in order of appearance):
         rc file (~/.ushrc)
@@ -35,3 +29,11 @@ Implement the Unix shell described in the accompanying man page. Do not to imple
             signal(3c)
             getpid(2), getpgrp(2), getppid(2), getpgid(2)
             setpgid(2), setpgrp(2) 
+
+Job control is not implemented including these commands
+
+    the fg command,
+    the bg command,
+    the kill command,
+    the jobs command, or
+    the & operator. 
