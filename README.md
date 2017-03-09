@@ -1,5 +1,14 @@
 A micro-shell, ush (ie, μ-shell), modeled after csh.
 
+To run this project:
+- Clone repo, cd into the directory.
+- from command line:
+    ```
+    $ make
+    $ ./ush
+    
+    ```
+
 Description:
 Implement the Unix shell described in the accompanying man page. 
 
