@@ -1,6 +1,5 @@
 /*
-Author: Siddharth Sharma
-Assignment 3, CS501, NCSU
+Author: Siddharth Sharma, NCSU
 2016
 */
 
