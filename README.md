@@ -9,14 +9,6 @@ Implement the Unix shell described in the accompanying man page. Do not to imple
     the jobs command, or
     the & operator. 
 
-Notes:
-
-A parsing routine is provided (code). It comes with no warranty. However, the syntax accepted by the given parser is the de facto syntax for the assignment. Therefore, any program that uses the provided parser unmodified, will (by definition) not fail any syntax tests.
-
-Become familiar with the Unix system calls in Section 2 of the Unix programmer's manual. There are several library routines (Section 3) that offer convenient interfaces to some of the more cryptic system calls. However, do not use the system library routine. (I.e, do not use the library routine called “system,” see system(3) manual page.)
-
-The shell will be forking other processes, which may in turn fork off other processes, etc. Forking too many process will cause Unix to run out of process descriptors, making everyone on the machine very unhappy. Therefore, be very careful when testing fork. To kill a horde of runaway ush processes, use the killall console command, which will kill every process of a given name.
-
     Summary of details enumerated in the manual page (in order of appearance):
         rc file (~/.ushrc)
         hostname%
