@@ -1,7 +1,7 @@
-##Ush micro shell
+## Ush micro shell
 (ie, μ-shell), modeled after csh.
 
-###Specification:
+### Specification:
 - [Manpage](ush_manpage.pdf), [Spec](spec.md)
 
 ### To run Ush:
