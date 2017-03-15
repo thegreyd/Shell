@@ -1,4 +1,4 @@
-Description:
+##Description:
 Implement the Unix shell described in the accompanying man page. 
 
     Summary of details enumerated in the manual page (in order of appearance):
