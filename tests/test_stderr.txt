@@ -1,0 +1,6 @@
+ls -hehe >& out_basic_err.txt
+cat out_basic_err.txt
+man dkfalf >& out_basic_err.txt
+cat out_basic_err.txt
+date kjkjk >& out_basic_err.txt
+cat out_basic_err.txt

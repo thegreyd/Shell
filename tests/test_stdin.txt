@@ -1,0 +1,2 @@
+wc < tests/test_exec.txt
+grep h < tests/test_exec.txt

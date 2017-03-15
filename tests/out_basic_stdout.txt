@@ -1,0 +1,16 @@
+total 1940
+drwxrwxr-x 7 sid sid    4096 Mar  1 00:50 .
+drwxrwxr-x 3 sid sid    4096 Mar 15 17:01 ..
+-rw-rw-r-- 1 sid sid  286900 Nov 11 23:05 02-local_fs-v1.3.pdf
+drwxrwxr-x 4 sid sid    4096 Mar  1 00:50 books
+-rw-rw-r-- 1 sid sid  193960 Sep 17 10:57 CathBaz.pdf
+-rw-rw-r-- 1 sid sid     321 Aug 24  2016 CS501.md
+drwxrwxr-x 3 sid sid    4096 Mar  1 00:50 hw1
+-rw-rw-r-- 1 sid sid   83890 Dec 17 13:29 hw1.zip
+drwxrwxr-x 4 sid sid    4096 Mar 15 17:21 hw3
+drwxrwxr-x 3 sid sid    4096 Mar  1 00:50 hw4
+drwxrwxr-x 2 sid sid    4096 Mar  1 00:50 lecture_notes
+-rw-rw-r-- 1 sid sid 1142299 Sep 12  2016 p365-ritchie.pdf
+-rw-rw-r-- 1 sid sid  236938 Sep 19 11:49 Scheduler.pdf
+/home/sid/Courses/os/hw3
+hello world

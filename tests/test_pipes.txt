@@ -1,0 +1,5 @@
+ls -la .. | wc
+ls -la | grep r | grep w | wc
+pwd | wc | wc | wc | wc | wc
+echo hello world | wc
+

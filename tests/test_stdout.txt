@@ -1,0 +1,6 @@
+ls -la .. > out_basic_stdout.txt
+cat out_basic_stdout.txt
+pwd > out_basic_stdout.txt
+cat out_basic_stdout.txt
+echo hello world > out_basic_stdout.txt
+cat out_basic_stdout.txt

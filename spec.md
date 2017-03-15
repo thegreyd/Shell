@@ -1,36 +1,3 @@
-A micro-shell, ush (ie, μ-shell), modeled after csh.
-
-To run this project:
-- Clone repo, cd into the directory.
-- from command line:
-    ```
-    $ make
-    $ ./ush
-    
-    ```
-
-### To run tests:
-- dependency - csh
-    + install csh : `sudo apt install csh`
-- Run tests: `make test`
-- For all successful tests- output will be something like this:
-```
-bash test.sh
-running tests/test_builtins.txt
-running tests/test_exec.txt
-running tests/test_pipeserr.txt
-running tests/test_pipes.txt
-running tests/test_stderr.txt
-running tests/test_stdinouterr.txt
-running tests/test_stdin.txt
-running tests/test_stdoutapp.txt
-running tests/test_stdout.txt
-```
-
-### Extra
-- add ush to path in bash
-    `export PATH=/home/user/dir/:$PATH`
-
 Description:
 Implement the Unix shell described in the accompanying man page. 
 
@@ -68,3 +35,25 @@ Job control is not implemented including these commands
     the kill command,
     the jobs command, or
     the & operator. 
+
+
+# Behaviour:
+	- disabled standard input buffer
+    - Signal Handling
+        + ignore sigint(ctrl+c) in parent shell
+        + ignore sigquit(ctrl+\) in parent shell
+        + ignore sigterm in parent shell
+        + ignore sigtstp(ctrl+z) in parent shell
+        + if cannot set sigaction perror "cannot handle signal"
+    - .ushrc
+        + search in home directory
+        + no error if not found
+        + open in read-only mode 
+        + execute commands line by line
+        + command behaviour is exactly like when normally run in shell
+        + works by counting the number of lines in ushrc, redirecting the file to shells standard input and reading and executing line number of times.
+        + restores the standard input to command line after execution
+    - prompt "%hostname" - hostname is the environment variable "USER"
+    - print prompt at standard output
+    - print everything else at standard input
+

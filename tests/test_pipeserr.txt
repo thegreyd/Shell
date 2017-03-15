@@ -1,0 +1,6 @@
+ls -hehe |& wc
+man dkfalf |& wc 
+ls -la .. |& wc
+ls -la |& grep r |& grep h |& wc
+ls -la |& grep r |& grep |& wc
+echo hello world |& wc

@@ -1,0 +1,6 @@
+wc < tests/test_pipes.txt >& tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+grep < tests/test_pipes.txt >& tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+grep t < tests/test_pipes.txt > tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt

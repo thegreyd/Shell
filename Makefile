@@ -10,3 +10,5 @@ ush:	$(OBJ)
 
 clean:
 	\rm $(OBJ) ush
+test:
+	bash test.sh

@@ -1,0 +1,14 @@
+echo hello world > tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+wc < tests/test_pipes.txt >>& tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+grep < tests/test_pipes.txt >>& tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+grep t < tests/test_pipes.txt >> tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+ls -la .. >& tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+pwd >> tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt
+echo hello world >> tests/out_basic_stdout.txt
+cat tests/out_basic_stdout.txt

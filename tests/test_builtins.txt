@@ -1,0 +1,8 @@
+setenv PATH NULL
+cd /home/
+/bin/ls
+cd ..
+/bin/ls
+echo hello world 1 2 4
+setenv sid sharma
+setenv
